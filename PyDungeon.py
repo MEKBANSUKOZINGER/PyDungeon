@@ -69,6 +69,9 @@ class Player :
                     self.isJumping = False
                     self.jumpCount = 10
 
+    def Attack(self, attackType) :
+        print(attackType)
+
 class Attacker :
     def __init__(self) :
         self.attackNodes = []
@@ -79,38 +82,39 @@ class Attacker :
     
     def Draw(self) :
         pygame.draw.rect(screen, BLUE, ((SCREEN_WIDTH - self.width) // 2, self.posY, self.width, self.height))
-        for node in self.attackNodes :
-            node.Draw()
+        for i in range(len(self.attackNodes)) :
+            if self.isLarge :
+                self.attackNodes[i].Draw((SCREEN_WIDTH - self.width) // 2 + 10 + 70 * (i), self.posY + 10, 60, 60)
+            else :
+                self.attackNodes[i].Draw((SCREEN_WIDTH - self.width) // 2 + 5 + 25 * (i), self.posY + 5, 20, 20)
+
 
 
     def EnableSelf(self) :
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_a :
-                self.isLarge = not self.isLarge
-                if self.isLarge : 
-                    self.width, self.height = 100, 100  # 큰 네모 크기
-                    self.posY = 200  # 아래로 이동
-                else :
-                    self.width, self.height = 50, 50  # 작은 네모 크기
-                    self.posY = 10  # 원래 위치
+        self.isLarge = not self.isLarge
+        if self.isLarge : 
+            self.width, self.height = 570, 80  # 큰 네모 크기
+            self.posY = 200  # 아래로 이동
+        else :
+            self.width, self.height = 205, 30  # 작은 네모 크기
+            self.posY = 10  # 원래 위치
 
-    def AttackInput(self) :
-        if self.isLarge :
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q :
-                    self.attackNodes.append(Node("Attack", 30, 30))
-                elif event.key == pygame.K_w :
-                    self.attackNodes.append(Node("Jump", 30, 30))
-                elif event.key == pygame.K_e :
-                    self.attackNodes.append(Node("Dash", 30, 30))
-                elif event.key == pygame.K_q :
-                    self.attackNodes.append(Node("Jump", 30, 30))
+    def AttackInput(self, _nodeType) :
+        self.attackNodes.append(Node(_nodeType))
+
+    def AttackCoroutine(self, player) :
+        for node in self.attackNodes :
+            player.Attack(node.GetType())
 
 class Node :
-    def __init__(self, nodeType, node_width, node_height) :
+    def __init__(self, nodeType) :
         self.type = nodeType
-        self.width = node_width
-        self.height = node_height
+
+    def GetType(self) : return self.type
+
+    def Draw(self, posX, posY, width, height) :
+        pygame.draw.rect(screen, WHITE, (posX, posY, width, height))
+
 
 
 # 플랫폼 설정
@@ -139,6 +143,14 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_a :
                 attacker.EnableSelf()
+            if event.key == pygame.K_q :
+                attacker.AttackInput("Attack")
+            if event.key == pygame.K_w :
+                attacker.AttackInput("Jump")
+            if event.key == pygame.K_e :
+                attacker.AttackInput("Dash")
+            if event.key == pygame.K_RETURN :
+                attacker.AttackCoroutine(player)
 
     keys = pygame.key.get_pressed()
 
