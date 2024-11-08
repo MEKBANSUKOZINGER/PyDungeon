@@ -20,6 +20,26 @@ BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 
+playerIdleImg = pygame.image.load("./Images/Sonic/Sonic_Idle.png")
+playerIdleImg = pygame.transform.scale(playerIdleImg, (60, 60))
+
+playerIdleImages = [playerIdleImg, playerIdleImg, playerIdleImg, playerIdleImg]
+
+playerRunImage1 = pygame.image.load("./Images/Sonic/Sonic_Run1.png")
+playerRunImage1 = pygame.transform.scale(playerRunImage1, (60, 60))
+playerRunImage2 = pygame.image.load("./Images/Sonic/Sonic_Run2.png")
+playerRunImage2 = pygame.transform.scale(playerRunImage2, (60, 60))
+playerRunImage3 = pygame.image.load("./Images/Sonic/Sonic_Run3.png")
+playerRunImage3 = pygame.transform.scale(playerRunImage3, (60, 60))
+playerRunImage4 = pygame.image.load("./Images/Sonic/Sonic_Run4.png")
+playerRunImage4 = pygame.transform.scale(playerRunImage4, (60, 60))
+
+playerRunImages = [playerRunImage1, playerRunImage2, playerRunImage3, playerRunImage4]
+
+playerJumpImage = pygame.image.load("./Images/Sonic/Sonic_Jump.png")
+playerJumpImage = pygame.transform.scale(playerJumpImage, (60, 60))
+
+playerJumpImages = [playerJumpImage, playerJumpImage, playerJumpImage, playerJumpImage]
 
 class Player :
     def __init__(self, player_posX, player_posY, player_size, player_velocity) :
@@ -38,8 +58,15 @@ class Player :
 
         self.isAttacking = False
 
+        self.drawImg = playerIdleImg
+        self.runIndex = 0
+
     async def Draw(self) :
-        pygame.draw.rect(screen, BLUE, (self.playerPos[0], self.playerPos[1], self.playerSize, self.playerSize))
+        if self.runIndex == 4 :
+            self.runIndex = 0
+            
+        screen.blit(self.drawImg[self.runIndex], (self.playerPos[0], self.playerPos[1]))
+        self.runIndex += 1
         await asyncio.sleep(0)
 
     async def Update(self) :
@@ -47,6 +74,14 @@ class Player :
         # 중력 설정
         self.playerPos[1] += self.fallSpeed
         self.fallSpeed += gravity
+
+
+        if self.fallSpeed > 2 :
+            self.drawImg = playerJumpImages
+        elif self.fallSpeed <= 2 and self.isDashing  : 
+            self.drawImg = playerRunImages
+        else :
+            self.drawImg = playerIdleImages
     
         # 대쉬 업데이트
         if self.isDashing :
@@ -54,9 +89,20 @@ class Player :
             # 대쉬 방향 결정
             if self.playerPos[0] < 0 :
                 self.dashDirection = 1
+                for i in range(len(playerIdleImages)) :
+                    playerIdleImages[i] = pygame.transform.flip(playerIdleImages[i], True, False )
+                for i in range(len(playerRunImages)) :
+                    playerRunImages[i] = pygame.transform.flip(playerRunImages[i], True, False )
+                for i in range(len(playerJumpImages)) :
+                    playerJumpImages[i] = pygame.transform.flip(playerJumpImages[i], True, False )
             elif self.playerPos[0] > SCREEN_WIDTH - self.playerSize:
                 self.dashDirection = -1
-            
+                for i in range(len(playerIdleImages)) :
+                    playerIdleImages[i] = pygame.transform.flip(playerIdleImages[i], True, False )
+                for i in range(len(playerRunImages)) :
+                    playerRunImages[i] = pygame.transform.flip(playerRunImages[i], True, False )
+                for i in range(len(playerJumpImages)) :
+                    playerJumpImages[i] = pygame.transform.flip(playerJumpImages[i], True, False )
             # 가속도가 0이 되면 (보다 작아지면) 대쉬 종료
             if self.acceleration <= 0 :
                 self.isDashing = False
@@ -65,7 +111,7 @@ class Player :
             else :
                 self.playerPos[0] += self.acceleration * self.dashDirection
                 self.acceleration -= 0.4
-        
+            
         # 점프 업데이트
         if self.isJumping :
             print("ImJumping")
@@ -73,7 +119,7 @@ class Player :
                 neg = 1
                 if self.jumpCount <= 0:
                     neg = -1
-                if self.jumpCount <= 7 :
+                if self.jumpCount <= 5 :
                     self.canCollide = True
                 else :
                     self.canCollide = False
@@ -107,6 +153,13 @@ class Player :
         if attackType == "Dash_E":
             self.fallSpeed = 0
             self.isDashing = True
+            if self.dashDirection == -1 :
+                for i in range(len(playerIdleImages)) :
+                    playerIdleImages[i] = pygame.transform.flip(playerIdleImages[i], True, False )
+                for i in range(len(playerRunImages)) :
+                    playerRunImages[i] = pygame.transform.flip(playerRunImages[i], True, False )
+                for i in range(len(playerJumpImages)) :
+                    playerJumpImages[i] = pygame.transform.flip(playerJumpImages[i], True, False )
             self.dashDirection = 1
             self.acceleration = 25  # 초기 대쉬 속도 설정
         elif attackType == "Jump" :
@@ -117,8 +170,16 @@ class Player :
         elif attackType == "Dash_Q":
             self.fallSpeed = 0
             self.isDashing = True
+            if self.dashDirection == 1 :
+                for i in range(len(playerIdleImages)) :
+                    playerIdleImages[i] = pygame.transform.flip(playerIdleImages[i], True, False )
+                for i in range(len(playerRunImages)) :
+                    playerRunImages[i] = pygame.transform.flip(playerRunImages[i], True, False )
+                for i in range(len(playerJumpImages)) :
+                    playerJumpImages[i] = pygame.transform.flip(playerJumpImages[i], True, False )
             self.dashDirection = -1
             self.acceleration = 25  # 초기 대쉬 속도 설정
+
         await asyncio.sleep(0)
 
 class EnemyContainer :
@@ -164,7 +225,7 @@ class EnemyContainer :
         for i in range(len(self.container)) :
             print("Done")
             if i < len(self.container) and self.container[i].checkDie(self.player) :
-                print("Pop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n\n\n\n\n")
+                #print("Pop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n\n\n\n\n")
                 self.container.pop(i)
             await asyncio.sleep(0)
         await asyncio.sleep(0)
@@ -175,7 +236,7 @@ class EnemyContainer :
 
 class Enemy :
     def __init__(self) :
-        self.enemyPos = [random.randint(0,SCREEN_WIDTH // 10) * 10, -10]
+        self.enemyPos = [random.randint(0,SCREEN_WIDTH // 10) * 10, random.randint(-10, 500)]
         #print(self.enemyPos)
         self.enemySize = 30
         self.fallSpeed = 0
@@ -208,7 +269,7 @@ class Enemy :
         await asyncio.sleep(0)
 
     def checkDie(self, player) :
-        if (abs(self.enemyPos[0] - player.playerPos[0]) <= 100) and (abs(self.enemyPos[1] - player.playerPos[1]) <= 100) :
+        if (abs(self.enemyPos[0] - player.playerPos[0]) <= 60) and (abs(self.enemyPos[1] - player.playerPos[1]) <= 60) :
             print("Dead")
             return True
         else :
@@ -298,26 +359,26 @@ floor = pygame.Rect(0, 550, SCREEN_WIDTH, 50)
 platformContainer = [
         [   
         pygame.Rect(0, 550, SCREEN_WIDTH, 50),
-        pygame.Rect(300, 450, 200, 30),  # 공중 플랫폼
-        pygame.Rect(600, 400, 300, 30),
-        pygame.Rect(0, 100, 250, 30),
-        pygame.Rect(100, 320, 300, 30),
-        pygame.Rect(170, 200, 130, 30),
-        pygame.Rect(490, 160, 240, 30),
+        pygame.Rect(300, 450, 200, 10),  # 공중 플랫폼
+        pygame.Rect(600, 400, 300, 10),
+        pygame.Rect(0, 100, 250, 10),
+        pygame.Rect(100, 320, 300, 10),
+        pygame.Rect(170, 200, 130, 10),
+        pygame.Rect(490, 160, 240, 10),
     ], 
         [   
         pygame.Rect(0, 550, SCREEN_WIDTH, 50),
-        pygame.Rect(400, 250, 100, 30),  # 공중 플랫폼
-        pygame.Rect(100, 400, 200, 30),
-        pygame.Rect(350, 350, 350, 30),
-        pygame.Rect(520, 470, 100, 30),
-        pygame.Rect(80, 100, 50, 30),
-        pygame.Rect(290, 160, 140, 30),
-        pygame.Rect(0, 260, 140, 30),
+        pygame.Rect(400, 250, 100, 10),  # 공중 플랫폼
+        pygame.Rect(100, 400, 200, 10),
+        pygame.Rect(350, 350, 350, 10),
+        pygame.Rect(530, 370, 100, 10),
+        pygame.Rect(80, 100, 50, 10),
+        pygame.Rect(290, 160, 140, 10),
+        pygame.Rect(0, 260, 140, 10),
     ]
 ]
 
-player = Player(100, 500, 30, 0.5)
+player = Player(100, 500, 60, 0.5)
 
 attacker = Attacker()
 
