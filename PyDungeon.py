@@ -41,6 +41,50 @@ playerJumpImage = pygame.transform.scale(playerJumpImage, (60, 60))
 
 playerJumpImages = [playerJumpImage, playerJumpImage, playerJumpImage, playerJumpImage]
 
+motoBugImage = pygame.image.load("./Images/Enemies/motobug.png")
+motoBugImage = pygame.transform.scale(motoBugImage, (50, 50))
+
+eggmanImage = pygame.image.load("./Images/Enemies/eggman.png")
+eggmanImage = pygame.transform.scale(eggmanImage, (50, 50))
+
+enemyImages = [motoBugImage, eggmanImage]
+
+gr_200_50 = pygame.image.load("./Images/Platform/200_50_GR.png")
+gr_200_50 = pygame.transform.scale(gr_200_50, (200, 30))
+
+gr_200_50_forGround = pygame.image.load("./Images/Platform/200_50_GRR.png")
+gr_200_50_forGround = pygame.transform.scale(gr_200_50_forGround, (200, 50))
+
+gr_300_50 = pygame.image.load("./Images/Platform/300_50_GR.png")
+gr_300_50 = pygame.transform.scale(gr_300_50, (300, 30))
+
+backGround = pygame.image.load("./Images/BackGround/background.png")
+backGround = pygame.transform.scale(backGround, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
+attacker_B = pygame.image.load("./Images/UI/AttackContainer_B.png")
+attacker_B = pygame.transform.scale(attacker_B, (570, 80))
+
+attacker_S = pygame.image.load("./Images/UI/AttackContainer_S.png")
+attacker_S = pygame.transform.scale(attacker_S, (205, 30))
+
+rightNode_B = pygame.image.load("./Images/UI/rightNode_B.png")
+rightNode_B = pygame.transform.scale(rightNode_B, (60, 60))
+
+leftNode_B = pygame.image.load("./Images/UI/leftNode_B.png")
+leftNode_B = pygame.transform.scale(leftNode_B, (60, 60))
+
+jumpNode_B = pygame.image.load("./Images/UI/jumpNode_B.png")
+jumpNode_B = pygame.transform.scale(jumpNode_B, (60, 60))
+
+rightNode_S = pygame.image.load("./Images/UI/rightNode_S.png")
+rightNode_S = pygame.transform.scale(rightNode_S, (20, 20))
+
+leftNode_S = pygame.image.load("./Images/UI/leftNode_S.png")
+leftNode_S = pygame.transform.scale(leftNode_S, (20, 20))
+
+jumpNode_S = pygame.image.load("./Images/UI/jumpNode_S.png")
+jumpNode_S = pygame.transform.scale(jumpNode_S, (20, 20))
+
 class Player :
     def __init__(self, player_posX, player_posY, player_size, player_velocity) :
         self.playerPos = [player_posX, player_posY] #[x, y]
@@ -223,7 +267,7 @@ class EnemyContainer :
             await asyncio.sleep(0)
 
         for i in range(len(self.container)) :
-            print("Done")
+            #print("Done")
             if i < len(self.container) and self.container[i].checkDie(self.player) :
                 #print("Pop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n\n\n\n\n")
                 self.container.pop(i)
@@ -236,14 +280,16 @@ class EnemyContainer :
 
 class Enemy :
     def __init__(self) :
-        self.enemyPos = [random.randint(0,SCREEN_WIDTH // 10) * 10, random.randint(-10, 500)]
+        self.enemyPos = [random.randint(0,SCREEN_WIDTH // 10) * 10, random.randint(-10, 300)]
         #print(self.enemyPos)
         self.enemySize = 30
         self.fallSpeed = 0
+        self.enemyIndex = random.randint(0, len(enemyImages) - 1)
 
     async def Draw(self) :
         #print("Drawn")
-        pygame.draw.rect(screen, RED, (self.enemyPos[0], self.enemyPos[1], self.enemySize, self.enemySize))
+        #pygame.draw.rect(screen, RED, (self.enemyPos[0], self.enemyPos[1], self.enemySize, self.enemySize))
+        screen.blit(enemyImages[self.enemyIndex], (self.enemyPos[0]-30, self.enemyPos[1]-15))
         await asyncio.sleep(0)
 
     async def Update(self) :
@@ -289,10 +335,13 @@ class Attacker :
 
         self.randomMap = random.randint(0,len(platformContainer) - 1)
 
+        self.image = attacker_S
+
     def randomMapGenerate(self) : random.randint(0,len(platformContainer) - 1)
 
     async def Draw(self) :
-        pygame.draw.rect(screen, BLUE, ((SCREEN_WIDTH - self.width) // 2, self.posY, self.width, self.height))
+        #pygame.draw.rect(screen, BLUE, ((SCREEN_WIDTH - self.width) // 2, self.posY, self.width, self.height))
+        screen.blit(self.image, ((SCREEN_WIDTH - self.width) // 2, self.posY))
         for i in range(len(self.attackNodes)) :
             if self.isLarge :
                 await self.attackNodes[i].Draw((SCREEN_WIDTH - self.width) // 2 + 10 + 70 * (i), self.posY + 10, 60, 60)
@@ -306,9 +355,11 @@ class Attacker :
     async def EnableSelf(self) :
         self.isLarge = not self.isLarge
         if self.isLarge : 
+            self.image = attacker_B
             self.width, self.height = 570, 80  # 큰 네모 크기
             self.posY = 200  # 아래로 이동
         else :
+            self.image = attacker_S
             self.width, self.height = 205, 30  # 작은 네모 크기
             self.posY = 10  # 원래 위치
         await asyncio.sleep(0)
@@ -329,6 +380,8 @@ class Attacker :
         await asyncio.sleep(0)
 
     async def AttackCoroutine(self, player) :
+        if len(self.attackNodes) < 8 :
+            return
         currentIndex = 0
         currentTime = pygame.time.get_ticks()
         self.isAttacking = True
@@ -348,7 +401,22 @@ class Node :
     def GetType(self) : return self.type
 
     async def Draw(self, posX, posY, width, height) :
-        pygame.draw.rect(screen, WHITE, (posX, posY, width, height))
+        #pygame.draw.rect(screen, WHITE, (posX, posY, width, height))
+        #print(width, height)
+        if width == 20 and height == 20 :
+            if self.type == "Dash_Q" :
+                screen.blit(leftNode_S, (posX, posY))
+            elif self.type == "Dash_E" :
+                screen.blit(rightNode_S, (posX, posY))
+            elif self.type == "Jump" :
+                screen.blit(jumpNode_S, (posX, posY))
+        if width == 60 and height == 60 :
+            if self.type == "Dash_Q" :
+                screen.blit(leftNode_B, (posX, posY))
+            elif self.type == "Dash_E" :
+                screen.blit(rightNode_B, (posX, posY))
+            elif self.type == "Jump" :
+                screen.blit(jumpNode_B, (posX, posY))
         await asyncio.sleep(0)
 
 
@@ -361,20 +429,20 @@ platformContainer = [
         pygame.Rect(0, 550, SCREEN_WIDTH, 50),
         pygame.Rect(300, 450, 200, 10),  # 공중 플랫폼
         pygame.Rect(600, 400, 300, 10),
-        pygame.Rect(0, 100, 250, 10),
+        pygame.Rect(0, 100, 200, 10),
         pygame.Rect(100, 320, 300, 10),
-        pygame.Rect(170, 200, 130, 10),
-        pygame.Rect(490, 160, 240, 10),
+        pygame.Rect(170, 200, 200, 10),
+        pygame.Rect(490, 160, 300, 10),
     ], 
         [   
         pygame.Rect(0, 550, SCREEN_WIDTH, 50),
-        pygame.Rect(400, 250, 100, 10),  # 공중 플랫폼
+        pygame.Rect(400, 250, 300, 10),  # 공중 플랫폼
         pygame.Rect(100, 400, 200, 10),
-        pygame.Rect(350, 350, 350, 10),
-        pygame.Rect(530, 370, 100, 10),
-        pygame.Rect(80, 100, 50, 10),
-        pygame.Rect(290, 160, 140, 10),
-        pygame.Rect(0, 260, 140, 10),
+        pygame.Rect(350, 350, 300, 10),
+        pygame.Rect(530, 450, 200, 10),
+        pygame.Rect(150, 100, 200, 10),
+        pygame.Rect(250, 160, 200, 10),
+        pygame.Rect(0, 260, 200, 10),
     ]
 ]
 
@@ -439,19 +507,29 @@ async def main():
         # 화면 업데이트
         screen.fill(WHITE)
 
+        screen.blit(backGround, (0, 0))
+
         # 플랫폼 그리기
         pygame.draw.rect(screen, GREEN, floor)
         for platform in platformContainer[attacker.randomMap]:
-            pygame.draw.rect(screen, GREEN, platform)
+            #pygame.draw.rect(screen, GREEN, platform)
+            if platform.width == 200 :
+                screen.blit(gr_200_50, (platform.x, platform.y))
+            elif platform.width == 300 :
+                screen.blit(gr_300_50, (platform.x, platform.y))
+            elif platform.width == SCREEN_WIDTH :
+                screen.blit(gr_200_50_forGround, (0, 550))
+                screen.blit(gr_200_50_forGround, (200, 550))
+                screen.blit(gr_200_50_forGround, (400, 550))
+                screen.blit(gr_200_50_forGround, (600, 550))
 
         # 캐릭터 그리기
         await player.Draw()
-
-        # 어택 노드 그리기
-        await attacker.Draw()
-
+ 
         
         await enemyContainer.Draw()
+        # 어택 노드 그리기
+        await attacker.Draw()
 
         pygame.display.flip()
 
