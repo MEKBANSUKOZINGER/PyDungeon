@@ -8,13 +8,14 @@ pygame.init()
 
 
 # General Settings
-gravity = 1
+gravity = 2
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("턴전")
 
+BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
@@ -85,8 +86,97 @@ leftNode_S = pygame.transform.scale(leftNode_S, (20, 20))
 jumpNode_S = pygame.image.load("./Images/UI/jumpNode_S.png")
 jumpNode_S = pygame.transform.scale(jumpNode_S, (20, 20))
 
+bgm = pygame.mixer.music.load("./Music/BGM/GreenHillZone.mp3")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)
+
+jumpSFX = pygame.mixer.Sound("./Music/SFX/Jump.wav")
+ringSFX = pygame.mixer.Sound("./Music/SFX/Ring.wav")
+enemyHitSFX = pygame.mixer.Sound("./Music/SFX/EnemyHit.wav")
+sonicHitSFX = pygame.mixer.Sound("./Music/SFX/SonicHit.wav")
+
+class GameManager :
+    def __init__(self) :
+        self.galmuriFont_30 = pygame.font.Font("./Fonts/Galmuri9.ttf", 30)
+        self.galmuriFont_10 = pygame.font.Font("./Fonts/Galmuri9.ttf", 10)
+        self.score = 0
+        self.prevPlayerHp = 100
+        self.minusBlitting = False
+        self.minusAlpha = 250
+        self.minusPos = 60
+
+        self.plusBlitting = False
+        self.plusAlpha = 250
+        self.plusPos = 60
+
+    def RenderScore(self) :
+        scoreText = self.galmuriFont_30.render(" Score : " +  str(self.score) + " ", False, BLACK)
+        screen.blit(scoreText, (20, 20))
+
+    def RenderInfo(self, attacker, player) :
+        if not attacker.isLarge and not player.isDashing and not player.isJumping:
+            infoText = self.galmuriFont_10.render(" Press A to input skills ", False, BLACK)
+            screen.blit(infoText, (343, 43))
+        elif (player.isDashing or player.isJumping) and attacker.isAttacking  : 
+            infoText = self.galmuriFont_10.render(" ...Doing... ", False, BLACK)
+            screen.blit(infoText, (373, 43))
+        elif (player.isDashing or player.isJumping) and not attacker.isAttacking : 
+            infoText = self.galmuriFont_10.render(" Done! ", False, BLACK)
+            screen.blit(infoText, (388, 43))
+        
+        energyText = self.galmuriFont_30.render(" Energy : " + str(player.hp) + "% ", False, BLACK)
+        screen.blit(energyText, (550, 20))
+    
+    def RenderMinusFX(self, player) :
+        if self.minusBlitting :
+            minusText = self.galmuriFont_10.render("-" + str(self.prevPlayerHp - player.hp), False, BLACK)
+            if self.minusAlpha == 0 :
+                self.minusBlitting = False
+                self.prevPlayerHp = player.hp
+            else :
+                if self.minusAlpha == 250 :
+                    sonicHitSFX.play()
+                #print(self.minusPos)
+                minusText.set_alpha(self.minusAlpha)
+                screen.blit(minusText, (700, self.minusPos))
+                self.minusPos += 1
+                self.minusAlpha -= 10
+        elif self.prevPlayerHp != player.hp:
+            self.minusBlitting = True
+            self.minusAlpha = 250
+            self.minusPos = 60
+
+    def RenderPlusFX(self) :
+        if self.plusBlitting :
+            plusText = self.galmuriFont_10.render("+1", False, BLACK)
+            if self.plusAlpha == 0 :
+                self.plusBlitting = False
+            else :
+                #print(self.plusPos)
+                plusText.set_alpha(self.plusAlpha)
+                screen.blit(plusText, (155, self.plusPos))
+                self.plusPos += 1
+                self.plusAlpha -= 10
+
+    def ScorePlus(self) :
+        ringSFX.play()
+        self.plusBlitting = True
+        self.plusAlpha = 250
+        self.plusPos = 60
+        self.score += 1
+
+
+    def Update(self, attacker, player) :
+        self.RenderScore()
+        self.RenderInfo(attacker, player)
+        self.RenderMinusFX(player)
+        self.RenderPlusFX()
+
+
 class Player :
-    def __init__(self, player_posX, player_posY, player_size, player_velocity) :
+    def __init__(self, player_posX, player_posY, player_size, player_velocity, hp) :
+        self.hp = hp
+
         self.playerPos = [player_posX, player_posY] #[x, y]
         self.playerSize = player_size
         self.playerVelocity = player_velocity
@@ -101,6 +191,7 @@ class Player :
         self.dashDirection = 1
 
         self.isAttacking = False
+        self.prevNode = "None"
 
         self.drawImg = playerIdleImg
         self.runIndex = 0
@@ -114,22 +205,24 @@ class Player :
         await asyncio.sleep(0)
 
     async def Update(self) :
+        #print(self.hp)
+        #print(self.isAttacking)
         #print(self.playerPos)
         # 중력 설정
+        prevPos = self.playerPos[:]
         self.playerPos[1] += self.fallSpeed
         self.fallSpeed += gravity
 
-
-        if self.fallSpeed > 2 :
+        if self.fallSpeed > 4 :
             self.drawImg = playerJumpImages
-        elif self.fallSpeed <= 2 and self.isDashing  : 
+        elif self.fallSpeed <= 4 and self.isDashing  : 
             self.drawImg = playerRunImages
         else :
             self.drawImg = playerIdleImages
     
         # 대쉬 업데이트
         if self.isDashing :
-            print("ImDashing")
+            #print("ImDashing")
             # 대쉬 방향 결정
             if self.playerPos[0] < 0 :
                 self.dashDirection = 1
@@ -158,12 +251,13 @@ class Player :
             
         # 점프 업데이트
         if self.isJumping :
-            print("ImJumping")
+            #print("ImJumping")
+            if self.playerPos[1] <= 0 :
+                self.jumpCount = 0
             if self.jumpCount >= -10:
                 neg = 1
                 if self.jumpCount <= 0:
                     neg = -1
-                if self.jumpCount <= 5 :
                     self.canCollide = True
                 else :
                     self.canCollide = False
@@ -172,6 +266,11 @@ class Player :
             else:
                 self.isJumping = False
                 self.jumpCount = 30
+                
+        if prevPos == self.playerPos :
+            self.isAttacking = False
+        else :
+            self.isAttacking = True
 
         await asyncio.sleep(0)
 
@@ -183,9 +282,10 @@ class Player :
         
         # 플랫퐄 체크
         for platform in _platforms:
-            if platform.colliderect(pygame.Rect(self.playerPos[0], self.playerPos[1], self.playerSize, self.playerSize)):
+            if platform.colliderect(pygame.Rect(self.playerPos[0], self.playerPos[1], 10, self.playerSize)):
                 # 캐릭터가 플랫폼 위에 있을 때
-                if self.canCollide:
+                #print(platform.y, self.playerPos[1])
+                if self.canCollide and platform.y <= self.playerPos[1] + self.playerSize:
                     self.playerPos[1] = platform.top - self.playerSize
                     self.fallSpeed = 0
                     self.isJumping = False
@@ -195,7 +295,8 @@ class Player :
     
     async def Attack(self, attackType) :
         if attackType == "Dash_E":
-            self.fallSpeed = 0
+            if self.prevNode == "Jump" :
+                self.fallSpeed = 0
             self.isDashing = True
             if self.dashDirection == -1 :
                 for i in range(len(playerIdleImages)) :
@@ -206,13 +307,17 @@ class Player :
                     playerJumpImages[i] = pygame.transform.flip(playerJumpImages[i], True, False )
             self.dashDirection = 1
             self.acceleration = 25  # 초기 대쉬 속도 설정
+            self.prevNode = "Dash"
         elif attackType == "Jump" :
+            jumpSFX.play()
             self.isJumping = True
             self.fallSpeed = 0
             self.jumpCount = 11
             self.canCollide = False
+            self.prevNode = "Jump"
         elif attackType == "Dash_Q":
-            self.fallSpeed = 0
+            if self.prevNode == "Jump" :
+                self.fallSpeed = 0
             self.isDashing = True
             if self.dashDirection == 1 :
                 for i in range(len(playerIdleImages)) :
@@ -223,20 +328,21 @@ class Player :
                     playerJumpImages[i] = pygame.transform.flip(playerJumpImages[i], True, False )
             self.dashDirection = -1
             self.acceleration = 25  # 초기 대쉬 속도 설정
+            self.prevNode = "Dash"
 
         await asyncio.sleep(0)
 
 class EnemyContainer :
-    def __init__(self, attacker, player) :
+    def __init__(self) :
         self.container = []
-        self.attacker = attacker
-        self.player = player
         self.isCleared = True
+        self.attacked = False
 
-    async def Update(self) :
+    async def Update(self, attacker, player, gameManager) :
+        await self.checkClear(attacker, player, gameManager)
         for enemy in self.container :
             await enemy.Update()
-        await self.checkClear()
+
     
     async def Draw(self) :
         for enemy in self.container :
@@ -251,24 +357,30 @@ class EnemyContainer :
             await asyncio.sleep(0)
         await asyncio.sleep(0)
     
-    async def nextMap(self) :
+    async def nextMap(self, attacker) :
         if self.isCleared :
             await self.generateEnemies()
-            self.attacker.randomMapGenerate()
+            attacker.randomMapGenerate()
             self.isCleared = False
         await asyncio.sleep(0)
 
-    async def checkClear(self) :
-        if len(self.container) == 0 :
+    async def checkClear(self, attacker, player, gameManager) :
+        if self.attacked and not player.isAttacking :
+            player.hp -= 2 * len(self.container)
+            self.attacked = False
+        elif len(self.container) == 0 and not attacker.isAttacking and not player.isAttacking :
             self.isCleared = True
             await asyncio.sleep(0)
         else :
             self.isCleared = False
             await asyncio.sleep(0)
 
+        if player.isDashing or player.isJumping : 
+            self.attacked = True
+
         for i in range(len(self.container)) :
             #print("Done")
-            if i < len(self.container) and self.container[i].checkDie(self.player) :
+            if i < len(self.container) and self.container[i].checkDie(player, gameManager) :
                 #print("Pop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n\n\n\n\n\n")
                 self.container.pop(i)
             await asyncio.sleep(0)
@@ -289,7 +401,7 @@ class Enemy :
     async def Draw(self) :
         #print("Drawn")
         #pygame.draw.rect(screen, RED, (self.enemyPos[0], self.enemyPos[1], self.enemySize, self.enemySize))
-        screen.blit(enemyImages[self.enemyIndex], (self.enemyPos[0]-30, self.enemyPos[1]-15))
+        screen.blit(enemyImages[self.enemyIndex], (self.enemyPos[0]-10, self.enemyPos[1]-15))
         await asyncio.sleep(0)
 
     async def Update(self) :
@@ -314,9 +426,11 @@ class Enemy :
             await asyncio.sleep(0)
         await asyncio.sleep(0)
 
-    def checkDie(self, player) :
+    def checkDie(self, player, gameManager) :
         if (abs(self.enemyPos[0] - player.playerPos[0]) <= 60) and (abs(self.enemyPos[1] - player.playerPos[1]) <= 60) :
-            print("Dead")
+            #print("Dead")
+            enemyHitSFX.play()
+            gameManager.ScorePlus()
             return True
         else :
             return False
@@ -391,6 +505,8 @@ class Attacker :
             await player.Attack(node.GetType())
             await asyncio.sleep(0.25)
         self.isAttacking = False
+        await asyncio.sleep(0.25)
+        #self.attackNodes.clear()
         await asyncio.sleep(0)
 
 
@@ -437,7 +553,7 @@ platformContainer = [
         [   
         pygame.Rect(0, 550, SCREEN_WIDTH, 50),
         pygame.Rect(400, 250, 300, 10),  # 공중 플랫폼
-        pygame.Rect(100, 400, 200, 10),
+        pygame.Rect(100, 450, 200, 10),
         pygame.Rect(350, 350, 300, 10),
         pygame.Rect(530, 450, 200, 10),
         pygame.Rect(150, 100, 200, 10),
@@ -446,11 +562,14 @@ platformContainer = [
     ]
 ]
 
-player = Player(100, 500, 60, 0.5)
+player = Player(100, 500, 60, 0.5, 100)
 
 attacker = Attacker()
 
-enemyContainer = EnemyContainer(attacker, player)
+enemyContainer = EnemyContainer()
+
+gameManager = GameManager()
+
 # 메인 루프
 
 clock = pygame.time.Clock()
@@ -479,7 +598,7 @@ async def main():
                         await attacker.AttackInput("Dash_E")
                     if event.key == pygame.K_RETURN:
                         # 새로운 공격 태스크를 실행
-                        if attack_task is None or attack_task.done():
+                        if (attack_task is None or attack_task.done()) and (not player.isDashing and not player.isJumping and not attacker.isAttacking):
                             attack_task = asyncio.create_task(attacker.AttackCoroutine(player))
                     if event.key == pygame.K_BACKSPACE:
                         await attacker.DeleteAttackNode()
@@ -491,9 +610,9 @@ async def main():
             running = False
 
         # 중력 적용
-        await enemyContainer.nextMap()
+        await enemyContainer.nextMap(attacker)
 
-        await enemyContainer.Update()
+        await enemyContainer.Update(attacker, player, gameManager)
 
         await player.Update()
 
@@ -526,10 +645,12 @@ async def main():
         # 캐릭터 그리기
         await player.Draw()
  
-        
         await enemyContainer.Draw()
-        # 어택 노드 그리기
+
         await attacker.Draw()
+        # 어택 노드 그리기
+
+        gameManager.Update(attacker, player)
 
         pygame.display.flip()
 
