@@ -87,8 +87,7 @@ jumpNode_S = pygame.image.load("./Images/UI/jumpNode_S.png")
 jumpNode_S = pygame.transform.scale(jumpNode_S, (20, 20))
 
 bgm = pygame.mixer.music.load("./Music/BGM/GreenHillZone.mp3")
-pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1)
+
 
 jumpSFX = pygame.mixer.Sound("./Music/SFX/Jump.wav")
 ringSFX = pygame.mixer.Sound("./Music/SFX/Ring.wav")
@@ -451,7 +450,9 @@ class Attacker :
 
         self.image = attacker_S
 
-    def randomMapGenerate(self) : random.randint(0,len(platformContainer) - 1)
+    def randomMapGenerate(self) : 
+        self.randomMap = random.randint(0,len(platformContainer) - 1)
+        print(self.randomMap)
 
     async def Draw(self) :
         #pygame.draw.rect(screen, BLUE, ((SCREEN_WIDTH - self.width) // 2, self.posY, self.width, self.height))
@@ -556,11 +557,15 @@ platformContainer = [
         pygame.Rect(100, 450, 200, 10),
         pygame.Rect(350, 350, 300, 10),
         pygame.Rect(530, 450, 200, 10),
-        pygame.Rect(150, 100, 200, 10),
+        pygame.Rect(150, 60, 200, 10),
         pygame.Rect(250, 160, 200, 10),
         pygame.Rect(0, 260, 200, 10),
     ]
 ]
+
+# 메인 루프
+
+clock = pygame.time.Clock()
 
 player = Player(100, 500, 60, 0.5, 100)
 
@@ -569,93 +574,174 @@ attacker = Attacker()
 enemyContainer = EnemyContainer()
 
 gameManager = GameManager()
-
-# 메인 루프
-
-clock = pygame.time.Clock()
-
-
 async def main():
-    running = True
-    attack_task = None  # 공격 태스크 초기화
+    titleLogo = pygame.image.load("./Images/UI/logo.png")
+    titleLogo = pygame.transform.scale(titleLogo, (627, 398))
 
-    while running:
-        tick = clock.tick(360)
-        pygame.time.delay(25)
+    titleBG = pygame.image.load("./Images/UI/titleBG.png")
+    titleBG = pygame.transform.scale(titleBG, (800, 600))
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if not attacker.isAttacking and (not player.isDashing or not player.isJumping) :
-                    if event.key == pygame.K_a:
-                        await attacker.EnableSelf()
-                    if event.key == pygame.K_q:
-                        await attacker.AttackInput("Dash_Q")
-                    if event.key == pygame.K_w:
-                        await attacker.AttackInput("Jump")
-                    if event.key == pygame.K_e:
-                        await attacker.AttackInput("Dash_E")
-                    if event.key == pygame.K_RETURN:
-                        # 새로운 공격 태스크를 실행
-                        if (attack_task is None or attack_task.done()) and (not player.isDashing and not player.isJumping and not attacker.isAttacking):
-                            attack_task = asyncio.create_task(attacker.AttackCoroutine(player))
-                    if event.key == pygame.K_BACKSPACE:
-                        await attacker.DeleteAttackNode()
-
-        keys = pygame.key.get_pressed()
-
-        if keys[pygame.K_ESCAPE]:
-            # 저장 기능 (된다면)
-            running = False
-
-        # 중력 적용
-        await enemyContainer.nextMap(attacker)
-
-        await enemyContainer.Update(attacker, player, gameManager)
-
-        await player.Update()
-
-        # 바닥 충돌 처리
-        #await player.BoxCollider(floor)
-
-        await player.BoxCollider(platformContainer[attacker.randomMap])
-
-        await enemyContainer.BoxCollider(platformContainer[attacker.randomMap])
-
-        # 화면 업데이트
+    titleRun = True
+    playTextAlpha = 255
+    alphaType = "Decrease"
+    while titleRun :
         screen.fill(WHITE)
+        screen.blit(titleBG, (0, 0))
+        screen.blit(titleLogo, (85, 50))
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN :
+                titleRun = False
 
-        screen.blit(backGround, (0, 0))
+        playFont = pygame.font.Font("./Fonts/Galmuri9.ttf", 50)
+        playText = playFont.render("Press any key to start", False, BLACK)
 
-        # 플랫폼 그리기
-        pygame.draw.rect(screen, GREEN, floor)
-        for platform in platformContainer[attacker.randomMap]:
-            #pygame.draw.rect(screen, GREEN, platform)
-            if platform.width == 200 :
-                screen.blit(gr_200_50, (platform.x, platform.y))
-            elif platform.width == 300 :
-                screen.blit(gr_300_50, (platform.x, platform.y))
-            elif platform.width == SCREEN_WIDTH :
-                screen.blit(gr_200_50_forGround, (0, 550))
-                screen.blit(gr_200_50_forGround, (200, 550))
-                screen.blit(gr_200_50_forGround, (400, 550))
-                screen.blit(gr_200_50_forGround, (600, 550))
+        if playTextAlpha == 255 : 
+            alphaType = "Decrease"
+        elif playTextAlpha == 0 :
+            alphaType = "Increase"
+        
+        if alphaType == "Decrease" : 
+            playTextAlpha -= 1
+        elif alphaType == "Increase" : 
+            playTextAlpha += 1
+        playText.set_alpha(playTextAlpha)
 
-        # 캐릭터 그리기
-        await player.Draw()
- 
-        await enemyContainer.Draw()
-
-        await attacker.Draw()
-        # 어택 노드 그리기
-
-        gameManager.Update(attacker, player)
-
+        screen.blit(playText, (115, 450))
         pygame.display.flip()
+        
+    while True:
 
-    pygame.quit()
-    sys.exit()
+
+        running = True
+        attack_task = None  # 공격 태스크 초기화
+
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)
+
+        while running:
+            tick = clock.tick(360)
+            pygame.time.delay(25)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    #print("ESC?")
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if not attacker.isAttacking and (not player.isDashing or not player.isJumping) :
+                        if event.key == pygame.K_a:
+                            await attacker.EnableSelf()
+                        if event.key == pygame.K_q:
+                            await attacker.AttackInput("Dash_Q")
+                        if event.key == pygame.K_w:
+                            await attacker.AttackInput("Jump")
+                        if event.key == pygame.K_e:
+                            await attacker.AttackInput("Dash_E")
+                        if event.key == pygame.K_RETURN:
+                            # 새로운 공격 태스크를 실행\
+                            #print("erer")
+                            if (attack_task is None or attack_task.done()) and (not player.isDashing and not player.isJumping and not attacker.isAttacking):
+                                attack_task = asyncio.create_task(attacker.AttackCoroutine(player))
+                        if event.key == pygame.K_BACKSPACE:
+                            await attacker.DeleteAttackNode()
+
+            keys = pygame.key.get_pressed()
+
+            if keys[pygame.K_ESCAPE]:
+                running = False
+
+            # 중력 적용
+            await enemyContainer.nextMap(attacker)
+
+            await enemyContainer.Update(attacker, player, gameManager)
+
+            await player.Update()
+
+            # 바닥 충돌 처리
+            #await player.BoxCollider(floor)
+
+            await player.BoxCollider(platformContainer[attacker.randomMap])
+
+            await enemyContainer.BoxCollider(platformContainer[attacker.randomMap])
+
+            # 화면 업데이트
+            screen.fill(WHITE)
+
+            screen.blit(backGround, (0, 0))
+
+            # 플랫폼 그리기
+            pygame.draw.rect(screen, GREEN, floor)
+            #print(attacker.randomMap)
+            for platform in platformContainer[attacker.randomMap]:
+                #pygame.draw.rect(screen, GREEN, platform)
+                if platform.width == 200 :
+                    screen.blit(gr_200_50, (platform.x, platform.y))
+                elif platform.width == 300 :
+                    screen.blit(gr_300_50, (platform.x, platform.y))
+                elif platform.width == SCREEN_WIDTH :
+                    screen.blit(gr_200_50_forGround, (0, 550))
+                    screen.blit(gr_200_50_forGround, (200, 550))
+                    screen.blit(gr_200_50_forGround, (400, 550))
+                    screen.blit(gr_200_50_forGround, (600, 550))
+
+            # 캐릭터 그리기
+            await player.Draw()
+    
+            await enemyContainer.Draw()
+
+            await attacker.Draw()
+            # 어택 노드 그리기
+
+            gameManager.Update(attacker, player)
+
+            pygame.display.flip()
+
+        pygame.mixer.music.pause()
+        gameOverFont = pygame.font.Font("./Fonts/Galmuri9.ttf", 120)
+        gameOverSubFont = pygame.font.Font("./Fonts/Galmuri9.ttf", 50)
+        gameOverScoreFont = pygame.font.Font("./Fonts/Galmuri9.ttf", 40)
+
+        gameOverBG = pygame.image.load("./Images/UI/gameOverBG.png")
+        gameOverBG = pygame.transform.scale(gameOverBG, (800, 600))
+
+        #print("eSC")
+        gameOverRunning = True
+        while gameOverRunning :
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    print(event.key)
+                    if event.key == pygame.K_q :
+                        pygame.quit()
+                        sys.exit()
+                    if event.key == pygame.K_SPACE :
+                        print("hi")
+                        gameManager.score = 0
+                        player.hp = 100
+                        attacker.attackNodes.clear()
+                        gameManager.prevPlayerHp = 100
+                        enemyContainer.container.clear()
+                        enemyContainer.isCleared = True
+                        enemyContainer.nextMap(attacker)
+                        gameOverRunning = False
+                        #asyncio.run(main())
+
+            screen.fill(WHITE)
+
+            screen.blit(gameOverBG, (0, 0))
+
+            gameOver = gameOverFont.render("Game Over", False, WHITE)
+            screen.blit(gameOver, (90, 100))
+
+            score = gameOverScoreFont.render("Your Score : " + str(gameManager.score), False, WHITE)
+            screen.blit(score, (255, 260))
+
+            gameOverSubRetry = gameOverSubFont.render("Press Space bar to retry", False, WHITE)
+            screen.blit(gameOverSubRetry, (90, 350))
+
+            gameOverSubQuit = gameOverSubFont.render("Press Q to quit", False, WHITE)
+            screen.blit(gameOverSubQuit, (225, 420))
+            #print("Done")
+            pygame.display.flip()
 
 
 # asyncio 루프 실행
